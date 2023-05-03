@@ -23,12 +23,8 @@ OxtsPacket = namedtuple('OxtsPacket',
 OxtsData = namedtuple('OxtsData', 'packet, T_w_imu')
 
 
-def subselect_files(files, indices):
-    try:
-        files = [files[i] for i in indices]
-    except:
-        pass
-    return files
+def subselect_files(files, steps):
+    return files[::steps]
 
 
 def rotx(t):

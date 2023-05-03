@@ -27,7 +27,7 @@ class odometry:
         self.sequence = sequence
         self.sequence_path = os.path.join(base_path, 'sequences', sequence)
         self.pose_path = os.path.join(base_path, 'poses')
-        self.frames = kwargs.get('frames', None)
+        self.steps = kwargs.get('steps', None)
 
         # Default image file extension is 'png'
         self.imtype = kwargs.get('imtype', 'png')
@@ -130,17 +130,17 @@ class odometry:
                          '*.bin')))
 
         # Subselect the chosen range of frames, if any
-        if self.frames is not None:
+        if self.steps is not None:
             self.cam0_files = utils.subselect_files(
-                self.cam0_files, self.frames)
+                self.cam0_files, self.steps)
             self.cam1_files = utils.subselect_files(
-                self.cam1_files, self.frames)
+                self.cam1_files, self.steps)
             self.cam2_files = utils.subselect_files(
-                self.cam2_files, self.frames)
+                self.cam2_files, self.steps)
             self.cam3_files = utils.subselect_files(
-                self.cam3_files, self.frames)
+                self.cam3_files, self.steps)
             self.velo_files = utils.subselect_files(
-                self.velo_files, self.frames)
+                self.velo_files, self.steps)
 
     def _load_calib(self):
         """Load and compute intrinsic and extrinsic calibration parameters."""
@@ -172,11 +172,11 @@ class odometry:
         T3[0, 3] = P_rect_30[0, 3] / P_rect_30[0, 0]
 
         # Compute the velodyne to rectified camera coordinate transforms
-        data['T_cam0_velo'] = np.reshape(filedata['Tr'], (3, 4))
-        data['T_cam0_velo'] = np.vstack([data['T_cam0_velo'], [0, 0, 0, 1]])
-        data['T_cam1_velo'] = T1.dot(data['T_cam0_velo'])
-        data['T_cam2_velo'] = T2.dot(data['T_cam0_velo'])
-        data['T_cam3_velo'] = T3.dot(data['T_cam0_velo'])
+        # data['T_cam0_velo'] = np.reshape(filedata['Tr'], (3, 4))
+        # data['T_cam0_velo'] = np.vstack([data['T_cam0_velo'], [0, 0, 0, 1]])
+        # data['T_cam1_velo'] = T1.dot(data['T_cam0_velo'])
+        # data['T_cam2_velo'] = T2.dot(data['T_cam0_velo'])
+        # data['T_cam3_velo'] = T3.dot(data['T_cam0_velo'])
 
         # Compute the camera intrinsics
         data['K_cam0'] = P_rect_00[0:3, 0:3]
@@ -187,14 +187,14 @@ class odometry:
         # Compute the stereo baselines in meters by projecting the origin of
         # each camera frame into the velodyne frame and computing the distances
         # between them
-        p_cam = np.array([0, 0, 0, 1])
-        p_velo0 = np.linalg.inv(data['T_cam0_velo']).dot(p_cam)
-        p_velo1 = np.linalg.inv(data['T_cam1_velo']).dot(p_cam)
-        p_velo2 = np.linalg.inv(data['T_cam2_velo']).dot(p_cam)
-        p_velo3 = np.linalg.inv(data['T_cam3_velo']).dot(p_cam)
+        # p_cam = np.array([0, 0, 0, 1])
+        # p_velo0 = np.linalg.inv(data['T_cam0_velo']).dot(p_cam)
+        # p_velo1 = np.linalg.inv(data['T_cam1_velo']).dot(p_cam)
+        # p_velo2 = np.linalg.inv(data['T_cam2_velo']).dot(p_cam)
+        # p_velo3 = np.linalg.inv(data['T_cam3_velo']).dot(p_cam)
 
-        data['b_gray'] = np.linalg.norm(p_velo1 - p_velo0)  # gray baseline
-        data['b_rgb'] = np.linalg.norm(p_velo3 - p_velo2)   # rgb baseline
+        # data['b_gray'] = np.linalg.norm(p_velo1 - p_velo0)  # gray baseline
+        # data['b_rgb'] = np.linalg.norm(p_velo3 - p_velo2)   # rgb baseline
 
         self.calib = namedtuple('CalibData', data.keys())(*data.values())
 
@@ -210,8 +210,8 @@ class odometry:
                 self.timestamps.append(t)
 
         # Subselect the chosen range of frames, if any
-        if self.frames is not None:
-            self.timestamps = [self.timestamps[i] for i in self.frames]
+        if self.steps is not None:
+            self.timestamps = self.timestamps[::self.steps]
 
     def _load_poses(self):
         """Load ground truth poses (T_w_cam0) from file."""
@@ -222,8 +222,8 @@ class odometry:
         try:
             with open(pose_file, 'r') as f:
                 lines = f.readlines()
-                if self.frames is not None:
-                    lines = [lines[i] for i in self.frames]
+                if self.steps is not None:
+                    lines = lines[::self.steps]
 
                 for line in lines:
                     T_w_cam0 = np.fromstring(line, dtype=float, sep=' ')
